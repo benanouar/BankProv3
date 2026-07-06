@@ -4,7 +4,7 @@
 #include <string>
 #include <filesystem>
 #include <ctime>
-
+#include <algorithm>
 using namespace std;
 namespace fs = filesystem;
 const string DATA_DIR = "/data/data/com.termux/files/home/.bankprov3";
@@ -12,18 +12,26 @@ const string DATA_FILE = "/data/data/com.termux/files/home/.bankprov3/bank.txt";
 const string HISTORY_FILE = "/data/data/com.termux/files/home/.bankprov3/history.txt";
 const string BACKUP_FILE = "/data/data/com.termux/files/home/.bankprov3/bank_backup.txt";
 const string LAST_STATE_FILE = "/data/data/com.termux/files/home/.bankprov3/last_state.txt";
-class Account {
+const string FAVORITES_FILE = "/data/data/com.termux/files/home/.bankprov3/favorites.txt";
+bool isFavorite(int accountNumber);
+class Account{
 public:
     string owner;
     int accountNumber;
     long long balance;
-
+    bool favorite = false;
     void show() {
         cout << "\n-----------------" << endl;
+        if (isFavorite(accountNumber))
+        {
+            cout << "⭐ Favorite Account" << endl;
+        }
         cout << "Owner: " << owner << endl;
         cout << "Account Number: " << accountNumber << endl;
         cout << "Balance: " << balance << endl;
+       
     }
+
 
     void showBalance() {
         cout << "Current Balance: " << balance << endl;
@@ -79,7 +87,8 @@ void saveToFile(vector<Account>& accounts) {
     for (Account a : accounts) {
         file << a.owner << " "
              << a.accountNumber << " "
-             << a.balance << endl;
+             << a.balance << endl; 
+             
     }
 
     file.close();
@@ -407,8 +416,8 @@ bool login() {
     cout << "Password: ";
     cin >> password;
 
-    if(username == "admin" &&
-       password == "1234")
+    if(username == "Anouar" &&
+       password == "4321")
     {
         return true;
     }
@@ -466,6 +475,164 @@ void undoLastOperation(vector<Account>& accounts)
 
     cout << "Last operation has been undone." << endl;
 }
+void addToFavorites(int accountNumber)
+{
+    ifstream check(FAVORITES_FILE);
+
+    int number;
+
+    while (check >> number)
+    {
+        if (number == accountNumber)
+        {
+            cout << "This account is already in favorites!" << endl;
+            check.close();
+            return;
+        }
+    }
+
+    check.close();
+
+    ofstream file(FAVORITES_FILE, ios::app);
+
+    if (!file)
+    {
+        cout << "Cannot open favorites file!" << endl;
+        return;
+    }
+
+    file << accountNumber << endl;
+    file.close();
+
+    cout << "Account added to favorites!" << endl;
+}
+void favoriteAccount(vector<Account>& accounts)
+{
+    int number;
+    cout << "Enter account number: ";
+    cin >> number;
+
+    for (Account &a : accounts)
+    {
+        if (a.accountNumber == number)
+        {
+            addToFavorites(number);
+            return;
+        }
+    }
+
+    cout << "Account not found!" << endl;
+}
+void showFavorites(vector<Account>& accounts)
+{
+    ifstream file(FAVORITES_FILE);
+
+    if (!file)
+    {
+        cout << "No favorite accounts found!" << endl;
+        return;
+    }
+
+    int number;
+    bool found = false;
+
+    cout << "\n===== FAVORITE ACCOUNTS =====\n";
+
+    while (file >> number)
+    {
+        for (Account &a : accounts)
+        {
+            if (a.accountNumber == number)
+            {
+                a.show();
+                found = true;
+            }
+        }
+    }
+
+    file.close();
+
+    if (!found)
+    {
+        cout << "No favorite accounts found!" << endl;
+    }
+}
+void removeFromFavorites(vector<Account>& accounts)
+{
+    int accountNumber;
+    cout << "Enter account number: ";
+    cin >> accountNumber;
+
+    ifstream input(FAVORITES_FILE);
+
+    if (!input)
+    {
+        cout << "Favorites file not found!" << endl;
+        return;
+    }
+
+    vector<int> favorites;
+    int number;
+
+    while (input >> number)
+    {
+        favorites.push_back(number);
+    }
+
+    input.close();
+    
+   bool removed = false;
+
+   for (auto it = favorites.begin();
+   it != favorites.end(); )
+   {
+       if (*it == accountNumber)
+       {
+           it = favorites.erase(it);
+           removed = true;
+       }
+       else
+       {
+           ++it;
+       }
+   }
+ofstream output(FAVORITES_FILE);
+
+for (int number : favorites)
+{
+    output << number << endl;
+}
+
+output.close();
+
+if (removed)
+{
+    cout << "Account removed from favorites!" << endl;
+}
+else
+{
+    cout << "Account is not in favorites!" << endl;
+}
+    cout << "Favorites loaded successfully." << endl;
+}
+bool isFavorite(int accountNumber)
+{
+    ifstream file(FAVORITES_FILE);
+
+    int number;
+
+    while (file >> number)
+    {
+        if (number == accountNumber)
+        {
+            file.close();
+            return true;
+        }
+    }
+
+    file.close();
+    return false;
+}
 int main () {
 
     if(!login()) {
@@ -493,7 +660,10 @@ int main () {
         cout << "11. Restore Backup\n";
         cout << "12. Activity Log\n";
         cout << "13.Undo Last Operation\n";
-        cout << "14. Exit\n";
+        cout << "14. Add to Favorites\n";
+        cout << "15. Show Favorites\n";
+        cout << "16. Remove from Favorites\n";
+        cout << "17. Exit\n";
         cout << "Choice: ";
 
         cin >> choice;
@@ -548,6 +718,15 @@ int main () {
             break;
 
         case 14:
+            favoriteAccount(accounts);
+            break;
+        case 15:
+            showFavorites(accounts);
+            break;
+        case 16:
+            removeFromFavorites(accounts);
+            break;
+        case 17:
             cout << "Goodbye!" << endl;
             saveToFile(accounts);
             break; 
@@ -555,7 +734,7 @@ int main () {
             cout << "Invalid choice!" << endl;
         }
 
-    } while (choice != 14);
+    } while (choice != 17);
 
     return 0;
 }
