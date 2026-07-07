@@ -13,12 +13,15 @@ const string HISTORY_FILE = "/data/data/com.termux/files/home/.bankprov3/history
 const string BACKUP_FILE = "/data/data/com.termux/files/home/.bankprov3/bank_backup.txt";
 const string LAST_STATE_FILE = "/data/data/com.termux/files/home/.bankprov3/last_state.txt";
 const string FAVORITES_FILE = "/data/data/com.termux/files/home/.bankprov3/favorites.txt";
+const string PASSWORD_FILE = "/data/data/com.termux/files/home/.bankprov3/passwords.txt";
 bool isFavorite(int accountNumber);
+bool checkPassword(int accountNumber);
 class Account{
 public:
     string owner;
     int accountNumber;
     long long balance;
+    string password;
     bool favorite = false;
     void show() {
         cout << "\n-----------------" << endl;
@@ -53,11 +56,13 @@ void initializeSystem()
     }
 }
 string currentTime();
+void setPassword(vector<Account>& accounts);
 void writeLog(string action);
+void savePassword(int accountNumber, string password);
 void createBackup()
+
 {
     ifstream src(DATA_FILE);
-    writeLog("AUTO BACKUP CREATED");
     if (!src)
         return;
 
@@ -171,8 +176,22 @@ void addAccount(vector<Account>& accounts) {
 
     cout << "Balance: ";
     cin >> a.balance;
+    string confirmPassword;
+
+    cout << "Create Password: ";
+    cin >> a.password;
+
+    cout << "Confirm Password: ";
+    cin >> confirmPassword;
+
+    if (a.password != confirmPassword)
+    {
+        cout << "Passwords do not match!" << endl;
+        return;
+    }
     saveLastState();
     accounts.push_back(a);
+    savePassword(a.accountNumber, a.password);
     saveToFile(accounts);
     writeLog("ADD | " + a.owner +
          " | Account: " +
@@ -249,7 +268,10 @@ void withdraw(vector<Account>& accounts) {
 
     for (Account &a : accounts) {
         if (a.accountNumber == acc) {
-
+            if (!checkPassword(a.accountNumber))
+            {
+                return;
+            }
             if (amount <= a.balance) {
                 saveLastState();
                 a.balance -= amount;
@@ -633,6 +655,91 @@ bool isFavorite(int accountNumber)
     file.close();
     return false;
 }
+void savePassword(int accountNumber, string password)
+{
+    ofstream file(PASSWORD_FILE, ios::app);
+
+    if (!file)
+    {
+        cout << "Cannot open password file!" << endl;
+        return;
+    }
+
+    file << accountNumber << " " << password << endl;
+
+    file.close();
+}
+bool checkPassword(int accountNumber)
+{
+    ifstream file(PASSWORD_FILE);
+
+    if (!file)
+    {
+        cout << "Password file not found!" << endl;
+        return false;
+    }
+
+    int number;
+    string savedPassword;
+    string enteredPassword;
+
+    cout << "Enter Password: ";
+    cin >> enteredPassword;
+
+    while (file >> number >> savedPassword)
+    {
+        if (number == accountNumber)
+        {
+            file.close();
+
+            if (enteredPassword == savedPassword)
+                return true;
+
+            cout << "Wrong password!" << endl;
+            return false;
+        }
+    }
+
+    file.close();
+
+    cout << "Password not found!" << endl;
+    return false;
+}
+void setPassword(vector<Account>& accounts)
+{
+    int accountNumber;
+
+    cout << "Account Number: ";
+    cin >> accountNumber;
+
+    for (Account &a : accounts)
+    {
+        if (a.accountNumber == accountNumber)
+        {
+            string password;
+            string confirm;
+
+            cout << "New Password: ";
+            cin >> password;
+
+            cout << "Confirm Password: ";
+            cin >> confirm;
+
+            if (password != confirm)
+            {
+                cout << "Passwords do not match!" << endl;
+                return;
+            }
+
+            savePassword(accountNumber, password);
+
+            cout << "Password saved successfully!" << endl;
+            return;
+        }
+    }
+
+    cout << "Account not found!" << endl;
+}
 int main () {
 
     if(!login()) {
@@ -663,7 +770,8 @@ int main () {
         cout << "14. Add to Favorites\n";
         cout << "15. Show Favorites\n";
         cout << "16. Remove from Favorites\n";
-        cout << "17. Exit\n";
+        cout << "17. Set Password\n";
+        cout << "18. Exit\n";
         cout << "Choice: ";
 
         cin >> choice;
@@ -726,7 +834,12 @@ int main () {
         case 16:
             removeFromFavorites(accounts);
             break;
+
         case 17:
+            setPassword(accounts);
+            break;
+
+        case 18:
             cout << "Goodbye!" << endl;
             saveToFile(accounts);
             break; 
@@ -734,7 +847,7 @@ int main () {
             cout << "Invalid choice!" << endl;
         }
 
-    } while (choice != 17);
+    } while (choice != 18);
 
     return 0;
 }
