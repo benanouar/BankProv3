@@ -59,6 +59,8 @@ string currentTime();
 void setPassword(vector<Account>& accounts);
 void writeLog(string action);
 void savePassword(int accountNumber, string password);
+void changePassword(vector<Account>& accounts);
+void deletePassword(int accountNumber);
 void createBackup()
 
 {
@@ -301,8 +303,12 @@ void showBalance(vector<Account>& accounts) {
     cout << "Account Number: ";
     cin >> acc;
 
-    for (Account a : accounts) {
+    for (Account &a : accounts) {
         if (a.accountNumber == acc) {
+            if (!checkPassword(a.accountNumber))
+            {
+                return;
+            }
             a.showBalance();
             return;
         }
@@ -338,7 +344,10 @@ void transferMoney(vector<Account>& accounts) {
         cout << "Account not found!" << endl;
         return;
     }
-
+    if (!checkPassword(accounts[fromIndex].accountNumber))
+    {
+        return;
+    }
     if(accounts[fromIndex].balance < amount) {
         cout << "Not enough balance!" << endl;
         return;
@@ -368,9 +377,13 @@ void deleteAccount(vector<Account>& accounts) {
     for(int i = 0; i < accounts.size(); i++) {
 
         if(accounts[i].accountNumber == acc) {
+            if (!checkPassword(accounts[i].accountNumber))
+            {
+                return;
+            }
             saveLastState();
             accounts.erase(accounts.begin() + i);
-
+            deletePassword(acc);
             saveToFile(accounts);
 writeLog(
     "DELETE | Account: " +
@@ -657,53 +670,42 @@ bool isFavorite(int accountNumber)
 }
 void savePassword(int accountNumber, string password)
 {
-    ofstream file(PASSWORD_FILE, ios::app);
+    vector<pair<int, string>> passwords;
 
-    if (!file)
-    {
-        cout << "Cannot open password file!" << endl;
-        return;
-    }
-
-    file << accountNumber << " " << password << endl;
-
-    file.close();
-}
-bool checkPassword(int accountNumber)
-{
-    ifstream file(PASSWORD_FILE);
-
-    if (!file)
-    {
-        cout << "Password file not found!" << endl;
-        return false;
-    }
+    ifstream input(PASSWORD_FILE);
 
     int number;
-    string savedPassword;
-    string enteredPassword;
+    string pass;
+    bool found = false;
 
-    cout << "Enter Password: ";
-    cin >> enteredPassword;
-
-    while (file >> number >> savedPassword)
+    while (input >> number >> pass)
     {
         if (number == accountNumber)
         {
-            file.close();
-
-            if (enteredPassword == savedPassword)
-                return true;
-
-            cout << "Wrong password!" << endl;
-            return false;
+            passwords.push_back({accountNumber, password});
+            found = true;
+        }
+        else
+        {
+            passwords.push_back({number, pass});
         }
     }
 
-    file.close();
+    input.close();
 
-    cout << "Password not found!" << endl;
-    return false;
+    if (!found)
+    {
+        passwords.push_back({accountNumber, password});
+    }
+
+    ofstream output(PASSWORD_FILE);
+
+    for (auto &p : passwords)
+    {
+        output << p.first << " " << p.second << endl;
+    }
+
+    output.close();
 }
 void setPassword(vector<Account>& accounts)
 {
@@ -740,6 +742,136 @@ void setPassword(vector<Account>& accounts)
 
     cout << "Account not found!" << endl;
 }
+bool checkPassword(int accountNumber)
+{
+    ifstream file(PASSWORD_FILE);
+
+    if (!file)
+    {
+        cout << "Password file not found!" << endl;
+        return false;
+    }
+
+    int number;
+    string savedPassword;
+    bool found = false;
+
+    while (file >> number >> savedPassword)
+    {
+        if (number == accountNumber)
+        {
+            found = true;
+            break;
+        }
+    }
+
+    file.close();
+
+    if (!found)
+    {
+        cout << "Password not found!" << endl;
+        return false;
+    }
+
+    for (int attempts = 3; attempts > 0; attempts--)
+    {
+        string enteredPassword;
+
+        cout << "Enter Password: ";
+        cin >> enteredPassword;
+
+        if (enteredPassword == savedPassword)
+        {
+            return true;
+        }
+
+        if (attempts > 1)
+        {
+            cout << "Wrong password! "
+                 << attempts - 1
+                 << " attempt(s) remaining."
+                 << endl;
+        }
+    }
+
+    cout << "Too many failed attempts!" << endl;
+    return false;
+}
+void changePassword(vector<Account>& accounts)
+{
+    int accountNumber;
+
+    cout << "Account Number: ";
+    cin >> accountNumber;
+
+    bool found = false;
+
+    for (Account &a : accounts)
+    {
+        if (a.accountNumber == accountNumber)
+        {
+            found = true;
+
+            if (!checkPassword(accountNumber))
+            {
+                return;
+            }
+
+            string newPassword;
+            string confirmPassword;
+
+            cout << "New Password: ";
+            cin >> newPassword;
+
+            cout << "Confirm Password: ";
+            cin >> confirmPassword;
+
+            if (newPassword != confirmPassword)
+            {
+                cout << "Passwords do not match!" << endl;
+                return;
+            }
+
+            savePassword(accountNumber, newPassword);
+
+            cout << "Password changed successfully!" << endl;
+            return;
+        }
+    }
+
+    if (!found)
+    {
+        cout << "Account not found!" << endl;
+    }
+}
+void deletePassword(int accountNumber)
+{
+    vector<pair<int, string>> passwords;
+
+    ifstream input(PASSWORD_FILE);
+
+    int number;
+    string pass;
+
+    while (input >> number >> pass)
+    {
+        if (number != accountNumber)
+        {
+            passwords.push_back({number, pass});
+        }
+    }
+
+    input.close();
+
+    ofstream output(PASSWORD_FILE);
+
+    for (auto &p : passwords)
+    {
+        output << p.first << " " << p.second << endl;
+    }
+
+    output.close();
+}
 int main () {
 
     if(!login()) {
@@ -771,7 +903,8 @@ int main () {
         cout << "15. Show Favorites\n";
         cout << "16. Remove from Favorites\n";
         cout << "17. Set Password\n";
-        cout << "18. Exit\n";
+        cout << "18. Change Password\n";
+        cout << "19. Exit\n";
         cout << "Choice: ";
 
         cin >> choice;
@@ -838,8 +971,11 @@ int main () {
         case 17:
             setPassword(accounts);
             break;
-
         case 18:
+            changePassword(accounts); 
+            break;
+
+        case 19:
             cout << "Goodbye!" << endl;
             saveToFile(accounts);
             break; 
@@ -847,7 +983,7 @@ int main () {
             cout << "Invalid choice!" << endl;
         }
 
-    } while (choice != 18);
+    } while (choice != 19);
 
     return 0;
 }
