@@ -5,6 +5,9 @@
 #include <filesystem>
 #include <ctime>
 #include <algorithm>
+#include <cctype>
+#include <termios.h>
+#include <unistd.h>
 using namespace std;
 namespace fs = filesystem;
 const string DATA_DIR = "/data/data/com.termux/files/home/.bankprov3";
@@ -16,6 +19,8 @@ const string FAVORITES_FILE = "/data/data/com.termux/files/home/.bankprov3/favor
 const string PASSWORD_FILE = "/data/data/com.termux/files/home/.bankprov3/passwords.txt";
 bool isFavorite(int accountNumber);
 bool checkPassword(int accountNumber);
+bool isStrongPassword(string password);
+string inputPassword();
 class Account{
 public:
     string owner;
@@ -181,16 +186,26 @@ void addAccount(vector<Account>& accounts) {
     string confirmPassword;
 
     cout << "Create Password: ";
-    cin >> a.password;
+    a.password = inputPassword();
 
     cout << "Confirm Password: ";
-    cin >> confirmPassword;
+    confirmPassword = inputPassword();
 
     if (a.password != confirmPassword)
     {
         cout << "Passwords do not match!" << endl;
         return;
     }
+if (!isStrongPassword(a.password))
+{
+    cout << "\nWeak password!" << endl;
+    cout << "Password must contain:" << endl;
+    cout << "- At least 8 characters" << endl;
+    cout << "- One uppercase letter" << endl;
+    cout << "- One lowercase letter" << endl;
+    cout << "- One digit" << endl;
+    return;
+}
     saveLastState();
     accounts.push_back(a);
     savePassword(a.accountNumber, a.password);
@@ -449,7 +464,7 @@ bool login() {
     cin >> username;
 
     cout << "Password: ";
-    cin >> password;
+    password = inputPassword();
 
     if(username == "Anouar" &&
        password == "4321")
@@ -711,29 +726,38 @@ void setPassword(vector<Account>& accounts)
 {
     int accountNumber;
 
-    cout << "Account Number: ";
+    cout << "Account Number";
     cin >> accountNumber;
 
     for (Account &a : accounts)
     {
         if (a.accountNumber == accountNumber)
         {
-            string password;
-            string confirm;
+            string Password;
+            string confirmPassword;
 
             cout << "New Password: ";
-            cin >> password;
+            Password = inputPassword();
 
             cout << "Confirm Password: ";
-            cin >> confirm;
-
-            if (password != confirm)
+            confirmPassword = inputPassword();
+            if (!isStrongPassword(Password))
+            {
+                cout << "\nWeak password!" << endl;
+                cout << "Password must contain:" << endl;
+                cout << "- At least 8 characters" << endl;
+                cout << "- One uppercase letter" << endl;
+                cout << "- One lowercase letter" << endl;
+                cout << "- One digit" << endl;
+                return;
+            }
+            if (Password != confirmPassword)
             {
                 cout << "Passwords do not match!" << endl;
                 return;
             }
 
-            savePassword(accountNumber, password);
+            savePassword(accountNumber, Password);
 
             cout << "Password saved successfully!" << endl;
             return;
@@ -777,8 +801,8 @@ bool checkPassword(int accountNumber)
     {
         string enteredPassword;
 
-        cout << "Enter Password: ";
-        cin >> enteredPassword;
+        cout << "Enter Password: "; 
+        enteredPassword = inputPassword();
 
         if (enteredPassword == savedPassword)
         {
@@ -821,11 +845,20 @@ void changePassword(vector<Account>& accounts)
             string confirmPassword;
 
             cout << "New Password: ";
-            cin >> newPassword;
+            newPassword = inputPassword();
 
             cout << "Confirm Password: ";
-            cin >> confirmPassword;
-
+            confirmPassword = inputPassword();
+if (!isStrongPassword(newPassword))
+{
+    cout << "\nWeak password!" << endl;
+    cout << "Password must contain:" << endl;
+    cout << "- At least 8 characters" << endl;
+    cout << "- One uppercase letter" << endl;
+    cout << "- One lowercase letter" << endl;
+    cout << "- One digit" << endl;
+    return;
+}
             if (newPassword != confirmPassword)
             {
                 cout << "Passwords do not match!" << endl;
@@ -871,6 +904,49 @@ void deletePassword(int accountNumber)
     }
 
     output.close();
+}
+bool isStrongPassword(string password)
+{
+    if (password.length() < 8)
+        return false;
+
+    bool hasUpper = false;
+    bool hasLower = false;
+    bool hasDigit = false;
+
+    for (char c : password)
+    {
+        if (isupper(c))
+            hasUpper = true;
+
+        if (islower(c))
+            hasLower = true;
+
+        if (isdigit(c))
+            hasDigit = true;
+    }
+
+    return hasUpper && hasLower && hasDigit;
+}
+string inputPassword()
+{
+    termios oldt, newt;
+
+    tcgetattr(STDIN_FILENO, &oldt);
+
+    newt = oldt;
+    newt.c_lflag &= ~ECHO;
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+    string password;
+    cin >> password;
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+
+    cout << endl;
+
+    return password;
 }
 int main () {
 
