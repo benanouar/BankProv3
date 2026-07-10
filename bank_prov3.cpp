@@ -8,6 +8,7 @@
 #include <cctype>
 #include <termios.h>
 #include <unistd.h>
+#include <iomanip>
 using namespace std;
 namespace fs = filesystem;
 const string DATA_DIR = "/data/data/com.termux/files/home/.bankprov3";
@@ -17,6 +18,13 @@ const string BACKUP_FILE = "/data/data/com.termux/files/home/.bankprov3/bank_bac
 const string LAST_STATE_FILE = "/data/data/com.termux/files/home/.bankprov3/last_state.txt";
 const string FAVORITES_FILE = "/data/data/com.termux/files/home/.bankprov3/favorites.txt";
 const string PASSWORD_FILE = "/data/data/com.termux/files/home/.bankprov3/passwords.txt";
+const double EUR_TO_DZD = 148.69;
+const double USD_TO_DZD = 133.94;
+const double USD_TO_EUR = 0.90;
+
+const double DZD_TO_EUR = 1.0 / EUR_TO_DZD;
+const double DZD_TO_USD = 1.0 / USD_TO_DZD;
+const double EUR_TO_USD = 1.0 / USD_TO_EUR;
 bool isFavorite(int accountNumber);
 bool checkPassword(int accountNumber);
 bool isStrongPassword(string password);
@@ -25,8 +33,9 @@ class Account{
 public:
     string owner;
     int accountNumber;
-    long long balance;
+    double  balance;
     string password;
+    string currency;
     bool favorite = false;
     void show() {
         cout << "\n-----------------" << endl;
@@ -36,13 +45,14 @@ public:
         }
         cout << "Owner: " << owner << endl;
         cout << "Account Number: " << accountNumber << endl;
-        cout << "Balance: " << balance << endl;
+        cout << fixed << setprecision(2);
+        cout << "Balance: " << balance << " " << currency << endl;
        
     }
 
 
     void showBalance() {
-        cout << "Current Balance: " << balance << endl;
+        cout << "Current Balance: " << balance << " " << currency << endl;
     }
 };
 
@@ -99,8 +109,8 @@ void saveToFile(vector<Account>& accounts) {
     for (Account a : accounts) {
         file << a.owner << " "
              << a.accountNumber << " "
-             << a.balance << endl; 
-             
+             << a.balance << " "  
+             << a.currency << endl;         
     }
 
     file.close();
@@ -111,7 +121,7 @@ void loadFromFile(vector<Account>& accounts) {
 
     Account a;
 
-    while (file >> a.owner >> a.accountNumber >> a.balance)
+    while (file >> a.owner >> a.accountNumber >> a.balance >> a.currency)
     {
         accounts.push_back(a);
     }
@@ -171,6 +181,31 @@ void saveLastState()
     src.close();
     dst.close();
 }
+double convertCurrency(double amount, string from, string to)
+{
+    if (from == to)
+        return amount;
+
+    if (from == "EUR" && to == "DZD")
+        return amount * EUR_TO_DZD;
+
+    if (from == "DZD" && to == "EUR")
+        return amount * DZD_TO_EUR;
+
+    if (from == "USD" && to == "DZD")
+        return amount * USD_TO_DZD;
+
+    if (from == "DZD" && to == "USD")
+        return amount * DZD_TO_USD;
+
+    if (from == "USD" && to == "EUR")
+        return amount * USD_TO_EUR;
+
+    if (from == "EUR" && to == "USD")
+        return amount * EUR_TO_USD;
+
+    return amount;
+}
 // ➕ Add
 void addAccount(vector<Account>& accounts) {
     Account a;
@@ -184,7 +219,22 @@ void addAccount(vector<Account>& accounts) {
     cout << "Balance: ";
     cin >> a.balance;
     string confirmPassword;
+    while (true)
+    {
+        cout << "Currency (DZD/USD/EUR): ";
+        cin >> a.currency;
+        transform(a.currency.begin(), a.currency.end(),
+    a.currency.begin(), ::toupper);
 
+        if (a.currency == "DZD" ||
+            a.currency == "USD" ||
+            a.currency == "EUR")
+        {
+            break;
+        }
+
+        cout << "Invalid currency! Please enter DZD, USD or EUR.\n";
+    }
     cout << "Create Password: ";
     a.password = inputPassword();
 
@@ -257,13 +307,15 @@ void deposit(vector<Account>& accounts) {
         if (a.accountNumber == acc) {
             saveLastState();
             a.balance += amount;
-            cout << "Deposit successful!" << endl;
+            cout << "\nDeposit successful!\n";
+            cout << "Amount: +" << amount << " " << a.currency << endl;
+            cout << fixed << setprecision(2);
             saveToFile(accounts);
             writeLog(
                 "DEPOSIT | Account: " +
                 to_string(a.accountNumber) +
                 " | +" +
-                to_string(amount)
+                to_string(amount) + " " + a.currency
             );
             return;
         }
@@ -292,13 +344,15 @@ void withdraw(vector<Account>& accounts) {
             if (amount <= a.balance) {
                 saveLastState();
                 a.balance -= amount;
-                cout << "Withdrawal successful!" << endl;
+                cout << "\nWithdrawal successful!\n";
+                cout << "Amount: -" << amount << " " << a.currency << endl;
+                cout << fixed << setprecision(2);
                 saveToFile(accounts); 
                 writeLog(
                     "WITHDRAW | Account: " +
                     to_string(a.accountNumber) +
                     " | -" +
-                    to_string(amount)
+                    to_string(amount) + " " + a.currency
                 );
             } else {
                 cout << "Not enough balance!" << endl;
@@ -330,10 +384,11 @@ void showBalance(vector<Account>& accounts) {
     }
 
     cout << "Account not found!" << endl;
+    cout << fixed << setprecision(2);
 }
 void transferMoney(vector<Account>& accounts) {
     int fromAcc, toAcc;
-    long long amount;
+    double amount;
 
     cout << "From Account: ";
     cin >> fromAcc;
@@ -367,6 +422,11 @@ void transferMoney(vector<Account>& accounts) {
         cout << "Not enough balance!" << endl;
         return;
     }
+    if (accounts[fromIndex].currency != accounts[toIndex].currency)
+    {
+    cout << "Transfer between different currencies is not allowed!" << endl;
+    return;
+    }
     saveLastState();
     accounts[fromIndex].balance -= amount;
     accounts[toIndex].balance += amount;
@@ -378,9 +438,18 @@ writeLog(
     " To " +
     to_string(toAcc) +
     " | Amount: " +
-    to_string(amount)
+    to_string(amount) + " " + accounts[fromIndex].currency 
 );
-    cout << "Transfer successful!" << endl;
+    cout << "\nTransfer successful!\n";
+    cout << "Amount: " << amount << " " << accounts[fromIndex].currency << endl;
+    cout << "Sender Balance: "
+     << accounts[fromIndex].balance << " "
+     << accounts[fromIndex].currency << endl;
+    cout << "Receiver Balance: "
+     << accounts[toIndex].balance << " "
+     << accounts[toIndex].currency << endl;
+    cout << "Transfer successful!" << endl; 
+    cout << fixed << setprecision(2);
 }
 void deleteAccount(vector<Account>& accounts) {
 
@@ -484,7 +553,7 @@ void statistics(vector<Account>& accounts) {
          << accounts.size()
          << endl;
 
-    long long totalMoney = 0;
+    double totalMoney = 0;
 
     for(Account a : accounts) {
         totalMoney += a.balance;
@@ -948,6 +1017,94 @@ string inputPassword()
 
     return password;
 }
+void changeCurrency(vector<Account>& accounts)
+{
+    int acc;
+    string newCurrency;
+
+    cout << "\n===== CHANGE CURRENCY =====\n";
+
+    cout << "Account Number: ";
+    cin >> acc;
+
+    for (Account &a : accounts)
+    {
+        if (a.accountNumber == acc)
+        {
+            if (!checkPassword(a.accountNumber))
+                return;
+
+            cout << "Current Currency: " << a.currency << endl;
+            cout << "Current Balance : "
+                 << fixed << setprecision(2)
+                 << a.balance << " " << a.currency << endl;
+
+            while (true)
+            {
+                cout << "\nNew Currency (DZD/USD/EUR): ";
+                cin >> newCurrency;
+
+                transform(newCurrency.begin(),
+                          newCurrency.end(),
+                          newCurrency.begin(),
+                          ::toupper);
+
+                if (newCurrency == "DZD" ||
+                    newCurrency == "USD" ||
+                    newCurrency == "EUR")
+                    break;
+
+                cout << "Invalid currency!\n";
+            }
+
+            if (newCurrency == a.currency)
+            {
+                cout << "Account is already in "
+                     << newCurrency << endl;
+                return;
+            }
+
+            double oldBalance = a.balance;
+            string oldCurrency = a.currency;
+
+            a.balance = convertCurrency(
+                            a.balance,
+                            a.currency,
+                            newCurrency);
+
+            a.currency = newCurrency;
+
+            saveToFile(accounts);
+
+            writeLog(
+                "CHANGE CURRENCY | Account: " +
+                to_string(a.accountNumber) +
+                " | " +
+                oldCurrency +
+                " -> " +
+                newCurrency
+            );
+
+            cout << "\nCurrency changed successfully!\n";
+
+            cout << "Old Balance : "
+                 << oldBalance
+                 << " "
+                 << oldCurrency
+                 << endl;
+
+            cout << "New Balance : "
+                 << a.balance
+                 << " "
+                 << a.currency
+                 << endl;
+
+            return;
+        }
+    }
+
+    cout << "Account not found!\n";
+}
 int main () {
 
     if(!login()) {
@@ -980,7 +1137,8 @@ int main () {
         cout << "16. Remove from Favorites\n";
         cout << "17. Set Password\n";
         cout << "18. Change Password\n";
-        cout << "19. Exit\n";
+        cout << "19. Change Currency\n";
+        cout << "20. Exit\n";
         cout << "Choice: ";
 
         cin >> choice;
@@ -1043,15 +1201,16 @@ int main () {
         case 16:
             removeFromFavorites(accounts);
             break;
-
         case 17:
             setPassword(accounts);
             break;
         case 18:
             changePassword(accounts); 
             break;
-
         case 19:
+            changeCurrency(accounts);
+            break;  
+        case 20:
             cout << "Goodbye!" << endl;
             saveToFile(accounts);
             break; 
@@ -1059,7 +1218,7 @@ int main () {
             cout << "Invalid choice!" << endl;
         }
 
-    } while (choice != 19);
+    } while (choice != 20);
 
     return 0;
 }
