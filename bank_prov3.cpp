@@ -545,26 +545,182 @@ bool login() {
 }
 
 
-void statistics(vector<Account>& accounts) {
+void statistics(vector<Account>& accounts)
+{
+    int choice;
 
     cout << "\n===== STATISTICS =====\n";
+    cout << "Total Accounts: " << accounts.size() << endl;
 
-    cout << "Total Accounts: "
-         << accounts.size()
-         << endl;
+    cout << "\n1. Total Bank Balance (Convert)" << endl;
+    cout << "2. Balance by Currency" << endl; 
+    cout << "3. Delailed Statistics" << endl;
+    cout << "Choice: ";
+    cin >> choice;
 
-    double totalMoney = 0;
+    if (choice == 1)
+    {
+        string target;
 
-    for(Account a : accounts) {
-        totalMoney += a.balance;
+        while (true)
+        {
+            cout << "\nConvert Total To (DZD/USD/EUR): ";
+            cin >> target;
+
+            transform(target.begin(),
+                      target.end(),
+                      target.begin(),
+                      ::toupper);
+
+            if (target == "DZD" ||
+                target == "USD" ||
+                target == "EUR")
+                break;
+
+            cout << "Invalid currency!" << endl;
+        }
+
+        double total = 0;
+
+        for (Account a : accounts)
+        {
+            total += convertCurrency(
+                        a.balance,
+                        a.currency,
+                        target);
+        }
+
+        cout << fixed << setprecision(2);
+
+        cout << "\n===== TOTAL BANK BALANCE =====\n";
+        cout << total << " " << target << endl;
     }
 
-    cout << "Total Bank Money "
-         << totalMoney
-         << endl;
-}
-void createBackupFolder() {
+    else if (choice == 2)
+    {
+        double dzd = 0;
+        double usd = 0;
+        double eur = 0;
 
+        for (Account a : accounts)
+        {
+            if (a.currency == "DZD")
+                dzd += a.balance;
+
+            else if (a.currency == "USD")
+                usd += a.balance;
+
+            else if (a.currency == "EUR")
+                eur += a.balance;
+        }
+
+        cout << fixed << setprecision(2);
+
+        cout << "\n===== BALANCE BY CURRENCY =====\n";
+
+        cout << "DZD : " << dzd << endl;
+        cout << "USD : " << usd << endl;
+        cout << "EUR : " << eur << endl;
+    }
+
+    else
+    {
+        cout << "Invalid choice!" << endl;
+    }  
+if (choice == 3)
+{
+    if (accounts.empty())
+    {
+        cout << "No accounts found!" << endl;
+        return;
+    }
+
+    int dzdCount = 0;
+    int usdCount = 0;
+    int eurCount = 0;
+
+    double totalDZD = 0;
+
+    int highest = 0;
+    int lowest = 0;
+
+    for (int i = 0; i < accounts.size(); i++)
+    {
+        if (accounts[i].currency == "DZD")
+            dzdCount++;
+        else if (accounts[i].currency == "USD")
+            usdCount++;
+        else if (accounts[i].currency == "EUR")
+            eurCount++;
+
+        double value = convertCurrency(
+            accounts[i].balance,
+            accounts[i].currency,
+            "DZD");
+
+        totalDZD += value;
+
+        if (value >
+            convertCurrency(accounts[highest].balance,
+                            accounts[highest].currency,
+                            "DZD"))
+        {
+            highest = i;
+        }
+
+        if (value <
+            convertCurrency(accounts[lowest].balance,
+                            accounts[lowest].currency,
+                            "DZD"))
+        {
+            lowest = i;
+        }
+    }
+
+    cout << fixed << setprecision(2);
+
+    cout << "\n========== DETAILED STATISTICS ==========\n";
+
+    cout << "Total Accounts : "
+         << accounts.size() << endl;
+
+    cout << "\nAccounts by Currency\n";
+
+    cout << "DZD : " << dzdCount << endl;
+    cout << "USD : " << usdCount << endl;
+    cout << "EUR : " << eurCount << endl;
+
+    cout << "\nHighest Balance\n";
+
+    cout << "Owner : "
+         << accounts[highest].owner << endl;
+
+    cout << "Balance : "
+         << accounts[highest].balance
+         << " "
+         << accounts[highest].currency
+         << endl;
+
+    cout << "\nLowest Balance\n";
+
+    cout << "Owner : "
+         << accounts[lowest].owner << endl;
+
+    cout << "Balance : "
+         << accounts[lowest].balance
+         << " "
+         << accounts[lowest].currency
+         << endl;
+
+    cout << "\nAverage Balance (DZD): "
+         << totalDZD / accounts.size()
+         << " DZD" << endl;
+} 
+       
+
+}
+void createBackupFolder() 
+{
     if (!filesystem::exists("backups")) {
         filesystem::create_directory("backups");
     }
