@@ -108,8 +108,9 @@ void saveToFile(vector<Account>& accounts) {
     backup.close();
 
     // Save
+    
     ofstream file(DATA_FILE);
-
+    file << fixed << setprecision(2);
     for (Account a : accounts) {
         file << a.owner << " "
              << a.accountNumber << " "
@@ -1456,6 +1457,7 @@ void exportToCSV(vector<Account>& accounts)
     if (choice == 1)
     {
         ofstream file(CSV_FILE);
+        file << fixed << setprecision(2);
         if (accounts.empty())
         {
             cout << "No accounts to export!" << endl;
@@ -1521,7 +1523,7 @@ else if (choice == 2)
                 ".csv";
 
             ofstream file(fileName);
-
+            file << fixed << setprecision(2);
             if (!file)
             {
                 cout << "Cannot create CSV file!" << endl;
@@ -1568,7 +1570,7 @@ else if (choice == 3)
 
     cout << "\nCurrency (DZD/USD/EUR): ";
     cin >> currency;
-
+    
     transform(currency.begin(),
               currency.end(),
               currency.begin(),
@@ -1579,7 +1581,8 @@ else if (choice == 3)
         currency +
         ".csv";
 
-    ofstream file(fileName);
+    ofstream file(fileName); 
+    file << fixed << setprecision(2);
 if (currency != "DZD" &&
     currency != "USD" &&
     currency != "EUR")
@@ -1643,7 +1646,7 @@ else
 }
 }
 int main () {
-
+cout << fixed << setprecision(2);
     if(!login()) {
         return 0;
     }
