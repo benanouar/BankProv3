@@ -19,11 +19,11 @@ const string BACKUP_FILE = "/data/data/com.termux/files/home/.bankprov3/bank_bac
 const string LAST_STATE_FILE = "/data/data/com.termux/files/home/.bankprov3/last_state.txt";
 const string FAVORITES_FILE = "/data/data/com.termux/files/home/.bankprov3/favorites.txt";
 const string PASSWORD_FILE = "/data/data/com.termux/files/home/.bankprov3/passwords.txt";
-const string CSV_FILE = "/data/data/com.termux/files/home/.bankprov3/accounts.csv";
+const string CSV_FILE = "/data/data/com.termux/files/home/.bankprov3/monthly_report.txt";
+const string REPORT_FILE = "/data/data/com.termux/files/home/.bankprov3/monthly_report.txt";
 const double EUR_TO_DZD = 148.69;
 const double USD_TO_DZD = 133.94;
 const double USD_TO_EUR = 0.90;
-
 const double DZD_TO_EUR = 1.0 / EUR_TO_DZD;
 const double DZD_TO_USD = 1.0 / USD_TO_DZD;
 const double EUR_TO_USD = 1.0 / USD_TO_EUR;
@@ -80,6 +80,7 @@ void changePassword(vector<Account>& accounts);
 void deletePassword(int accountNumber);
 void bankInterestCalculator(vector<Account>& accounts);
 void exportToCSV(vector<Account>& accounts);
+void monthlyReport(vector<Account>& accounts);
 void createBackup()
 
 {
@@ -1645,6 +1646,133 @@ else
     cout << "Invalid choice!" << endl;
 }
 }
+void monthlyReport(vector<Account>& accounts)
+{
+    if (accounts.empty())
+    {
+        cout << "No accounts found!" << endl;
+        return;
+    }
+
+    double totalEUR = 0;
+    double totalUSD = 0;
+    double totalDZD = 0;
+
+    int totalAccounts = accounts.size();
+
+    Account highest = accounts[0];
+    Account lowest = accounts[0];
+
+    for (Account &a : accounts)
+    {
+        if (a.currency == "EUR")
+            totalEUR += a.balance;
+        else if (a.currency == "USD")
+            totalUSD += a.balance;
+        else if (a.currency == "DZD")
+            totalDZD += a.balance;
+
+        if (a.balance > highest.balance)
+            highest = a;
+
+        if (a.balance < lowest.balance)
+            lowest = a;
+    }
+    // ===== Converted Totals =====
+
+    double totalInDZD =
+        totalDZD +
+        (totalEUR * 148.69) +
+        (totalUSD * 133.94);
+
+    double totalInEUR =
+        (totalDZD / 148.69) +
+        totalEUR +
+        (totalUSD * 0.90);
+
+    double totalInUSD =
+        (totalDZD / 133.94) +
+        (totalEUR / 0.90) +
+        totalUSD;
+    cout << fixed << setprecision(2);
+
+    cout << "\n========== MONTHLY REPORT ==========\n";
+
+    cout << "Date: " << currentTime() << endl;
+
+    cout << "\nTotal Accounts: "
+         << totalAccounts << endl;
+
+    cout << "\n----- BALANCES BY CURRENCY -----\n";
+
+    cout << "EUR : " << totalEUR << endl;
+    cout << "USD : " << totalUSD << endl;
+    cout << "DZD : " << totalDZD << endl;
+
+    cout << "\n----- CONVERTED TOTALS -----\n";
+
+    cout << "EUR : " << totalInEUR << endl;
+    cout << "USD : " << totalInUSD << endl;
+    cout << "DZD : " << totalInDZD << endl;
+
+    cout << "\n----- HIGHEST BALANCE -----\n";
+    cout << "Owner   : " << highest.owner << endl;
+    cout << "Account : " << highest.accountNumber << endl;
+    cout << "Balance : "
+         << highest.balance << " "
+         << highest.currency << endl;
+
+    cout << "\n----- LOWEST BALANCE -----\n";
+    cout << "Owner   : " << lowest.owner << endl;
+    cout << "Account : " << lowest.accountNumber << endl;
+    cout << "Balance : "
+         << lowest.balance << " "
+         << lowest.currency << endl;
+    ofstream file(REPORT_FILE);
+
+    if (file)
+    {
+        file << fixed << setprecision(2);
+
+        file << "========== MONTHLY REPORT ==========\n";
+        file << "Date: " << currentTime() << "\n\n";
+
+        file << "Total Accounts: "
+             << totalAccounts << "\n\n";
+
+        file << "----- BALANCES BY CURRENCY -----\n";
+        file << "EUR : " << totalEUR << "\n";
+        file << "USD : " << totalUSD << "\n";
+        file << "DZD : " << totalDZD << "\n\n";
+
+        file << "----- CONVERTED TOTALS -----\n";
+        file << "EUR : " << totalInEUR << "\n";
+        file << "USD : " << totalInUSD << "\n";
+        file << "DZD : " << totalInDZD << "\n\n";
+
+        file << "----- HIGHEST BALANCE -----\n";
+        file << "Owner   : " << highest.owner << "\n";
+        file << "Account : " << highest.accountNumber << "\n";
+        file << "Balance : "
+             << highest.balance << " "
+             << highest.currency << "\n\n";
+
+        file << "----- LOWEST BALANCE -----\n";
+        file << "Owner   : " << lowest.owner << "\n";
+        file << "Account : " << lowest.accountNumber << "\n";
+        file << "Balance : "
+             << lowest.balance << " "
+             << lowest.currency << "\n";
+
+        file.close();
+    }
+
+    writeLog("MONTHLY REPORT GENERATED");
+
+    cout << "\nMonthly report generated successfully!\n";
+    cout << "File: " << REPORT_FILE << endl;
+         
+}
 int main () {
 cout << fixed << setprecision(2);
     if(!login()) {
@@ -1680,7 +1808,8 @@ cout << fixed << setprecision(2);
         cout << "19. Change Currency\n";
         cout << "20. Bank Interest calculator\n";
         cout << "21. Export to CSV\n";  
-        cout << "22. Exit\n";
+        cout << "22. Monthly Report \n";
+        cout << "23. Exit\n";
         cout << "Choice: ";
 
         cin >> choice;
@@ -1759,6 +1888,9 @@ cout << fixed << setprecision(2);
             exportToCSV(accounts);
             break;
         case 22:
+            monthlyReport(accounts);
+            break;
+        case 23:
             cout << "Goodbye!" << endl;
             saveToFile(accounts);
             break; 
@@ -1766,7 +1898,7 @@ cout << fixed << setprecision(2);
             cout << "Invalid choice!" << endl;
         }
 
-    } while (choice != 22);
+    } while (choice != 23);
 
     return 0;
 }
