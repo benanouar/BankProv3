@@ -19,7 +19,6 @@ const string BACKUP_FILE = "/data/data/com.termux/files/home/.bankprov3/bank_bac
 const string LAST_STATE_FILE = "/data/data/com.termux/files/home/.bankprov3/last_state.txt";
 const string FAVORITES_FILE = "/data/data/com.termux/files/home/.bankprov3/favorites.txt";
 const string PASSWORD_FILE = "/data/data/com.termux/files/home/.bankprov3/passwords.txt";
-const string CSV_FILE = "/data/data/com.termux/files/home/.bankprov3/accounts.csv";
 const double EUR_TO_DZD = 148.69;
 const double USD_TO_DZD = 133.94;
 const double USD_TO_EUR = 0.90;
@@ -79,7 +78,6 @@ void savePassword(int accountNumber, string password);
 void changePassword(vector<Account>& accounts);
 void deletePassword(int accountNumber);
 void bankInterestCalculator(vector<Account>& accounts);
-void exportToCSV(vector<Account>& accounts);
 void createBackup()
 
 {
@@ -1351,8 +1349,7 @@ else
 {
     cout << "\nNo changes were made.\n";
 }
-}
-else  if (choice == 2)
+if (choice == 2)
 {
     double rate;
     int years;
@@ -1436,211 +1433,6 @@ return;
 
     cout << "Account not found!" << endl;
 }
-void exportToCSV(vector<Account>& accounts)
-{
-    int choice;
-
-    cout << "\n===== EXPORT TO CSV =====\n";
-    cout << "1. Export All Accounts\n";
-    cout << "2. Export One Account\n";
-    cout << "3. Export By Currency\n";
-    cout << "4. Back\n";
-    cout << "Choice: ";
-    cin >> choice;
-
-    if (choice == 4)
-        return;
-
-    cout << fixed << setprecision(2);
-
-    if (choice == 1)
-    {
-        ofstream file(CSV_FILE);
-        if (accounts.empty())
-        {
-            cout << "No accounts to export!" << endl;
-            return;
-        }
-        if (!file)
-        {
-            cout << "Cannot create CSV file!" << endl;
-            return;
-        }
-
-        time_t now = time(nullptr);
-
-        file << "Bank Pro v3 Export\n";
-        file << "Date," << ctime(&now);
-        file << "\n";
-
-        file << "Owner,Account Number,Balance,Currency\n";
-
-        int exported = 0;
-
-        for (Account &a : accounts)
-        {
-            file << a.owner << ","
-                 << a.accountNumber << ","
-                 << a.balance << ","
-                 << a.currency << "\n";
-
-            exported++;
-        }
-
-        file.close();
-
-        writeLog("EXPORT CSV | ALL");
-
-        cout << "\nAccounts exported successfully!\n";
-        cout << "Exported Accounts: "
-             << exported
-             << endl;
-
-        cout << "File: "
-             << CSV_FILE
-             << endl;
-}
-else if (choice == 2)
-{
-    int acc;
-
-    cout << "\nAccount Number: ";
-    cin >> acc;
-
-    bool found = false;
-
-    for (Account &a : accounts)
-    {
-        if (a.accountNumber == acc)
-        {
-            found = true;
-
-            string fileName =
-                DATA_DIR + "/account_" +
-                to_string(acc) +
-                ".csv";
-
-            ofstream file(fileName);
-
-            if (!file)
-            {
-                cout << "Cannot create CSV file!" << endl;
-                return;
-            }
-
-            time_t now = time(nullptr);
-
-            file << "Bank Pro v3 Export\n";
-            file << "Date," << ctime(&now);
-            file << "\n";
-
-            file << "Owner,Account Number,Balance,Currency\n";
-
-            file << fixed << setprecision(2);
-
-            file << a.owner << ","
-                 << a.accountNumber << ","
-                 << a.balance << ","
-                 << a.currency << "\n";
-
-            file.close();
-
-            writeLog(
-                "EXPORT CSV | Account: " +
-                to_string(acc)
-            );
-
-            cout << "\nAccount exported successfully!\n";
-            cout << "File: " << fileName << endl;
-
-            break;
-        }
-    }
-
-    if (!found)
-    {
-        cout << "Account not found!" << endl;
-    }
-}    
-else if (choice == 3)
-{
-    string currency;
-
-    cout << "\nCurrency (DZD/USD/EUR): ";
-    cin >> currency;
-
-    transform(currency.begin(),
-              currency.end(),
-              currency.begin(),
-              ::toupper);
-
-    string fileName =
-        DATA_DIR + "/accounts_" +
-        currency +
-        ".csv";
-
-    ofstream file(fileName);
-if (currency != "DZD" &&
-    currency != "USD" &&
-    currency != "EUR")
-{
-    cout << "Invalid currency!" << endl;
-    return;
-}
-    if (!file)
-    {
-        cout << "Cannot create CSV file!" << endl;
-        return;
-    }
-
-    time_t now = time(nullptr);
-
-    file << "Bank Pro v3 Export\n";
-    file << "Date," << ctime(&now);
-    file << "\n";
-
-    file << "Owner,Account Number,Balance,Currency\n";
-
-    file << fixed << setprecision(2);
-
-    int exported = 0;
-
-    for (Account &a : accounts)
-    {
-        if (a.currency == currency)
-        {
-            file << a.owner << ","
-                 << a.accountNumber << ","
-                 << a.balance << ","
-                 << a.currency << "\n";
-
-            exported++;
-        }
-    }
-
-    file.close();
-
-    if (exported == 0)
-    {
-        cout << "No accounts found with this currency!" << endl;
-        return;
-    }
-
-    writeLog(
-        "EXPORT CSV | Currency: " + currency
-    );
-
-    cout << "\nAccounts exported successfully!\n";
-    cout << "Exported Accounts: "
-         << exported << endl;
-
-    cout << "File: "
-         << fileName << endl;
-}
-else
-{
-    cout << "Invalid choice!" << endl;
-}
 }
 int main () {
 
@@ -1668,7 +1460,7 @@ int main () {
         cout << "10. Statistics\n";
         cout << "11. Restore Backup\n";
         cout << "12. Activity Log\n";
-        cout << "13. Undo Last Operation\n";
+        cout << "13.Undo Last Operation\n";
         cout << "14. Add to Favorites\n";
         cout << "15. Show Favorites\n";
         cout << "16. Remove from Favorites\n";
@@ -1676,8 +1468,7 @@ int main () {
         cout << "18. Change Password\n";
         cout << "19. Change Currency\n";
         cout << "20. Bank Interest calculator\n";
-        cout << "21. Export to CSV\n";  
-        cout << "22. Exit\n";
+        cout << "21. Exit\n";
         cout << "Choice: ";
 
         cin >> choice;
@@ -1753,9 +1544,6 @@ int main () {
             bankInterestCalculator(accounts);
             break;
         case 21:
-            exportToCSV(accounts);
-            break;
-        case 22:
             cout << "Goodbye!" << endl;
             saveToFile(accounts);
             break; 
@@ -1763,7 +1551,7 @@ int main () {
             cout << "Invalid choice!" << endl;
         }
 
-    } while (choice != 22);
+    } while (choice != 21);
 
     return 0;
 }
