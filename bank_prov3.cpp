@@ -21,6 +21,7 @@ const string FAVORITES_FILE = "/data/data/com.termux/files/home/.bankprov3/favor
 const string PASSWORD_FILE = "/data/data/com.termux/files/home/.bankprov3/passwords.txt";
 const string CSV_FILE = "/data/data/com.termux/files/home/.bankprov3/monthly_report.txt";
 const string REPORT_FILE = "/data/data/com.termux/files/home/.bankprov3/monthly_report.txt";
+const string STATEMENT_DIR = "/data/data/com.termux/files/home/.bankprov3/";
 const double EUR_TO_DZD = 148.69;
 const double USD_TO_DZD = 133.94;
 const double USD_TO_EUR = 0.90;
@@ -1773,6 +1774,124 @@ void monthlyReport(vector<Account>& accounts)
     cout << "File: " << REPORT_FILE << endl;
          
 }
+void accountStatement(vector<Account>& accounts)
+{
+    int acc;
+
+    cout << "\n===== ACCOUNT STATEMENT =====\n";
+    cout << "Account Number: ";
+    cin >> acc;
+
+    for (Account &a : accounts)
+    {
+        if (a.accountNumber == acc)
+        {
+            if (!checkPassword(a.accountNumber))
+                return;
+
+            string fileName =
+                STATEMENT_DIR +
+                "statement_" +
+                to_string(acc) +
+                ".txt";
+
+            ofstream file(fileName);
+
+            if (!file)
+            {
+                cout << "Cannot create statement!" << endl;
+                return;
+            }
+
+            cout << fixed << setprecision(2);
+            file << fixed << setprecision(2);
+
+            file << "========== ACCOUNT STATEMENT ==========\n\n";
+
+file << "Date: "
+     << currentTime()
+     << "\n\n";
+
+file << "Owner          : "
+     << a.owner
+     << "\n";
+
+file << "Account Number : "
+     << a.accountNumber
+     << "\n";
+
+file << "Currency       : "
+     << a.currency
+     << "\n";
+
+file << "Current Balance: "
+     << a.balance << " "
+     << a.currency
+     << "\n\n";
+
+file << "=======================================\n";
+file << "Transactions\n";
+file << "=======================================\n\n";
+ifstream history(HISTORY_FILE);
+
+string line;
+int transactionCount = 0;
+while (getline(history, line))
+{
+    if (line.find("Account: " + to_string(acc)) != string::npos ||
+        line.find("From " + to_string(acc)) != string::npos ||
+        line.find("To " + to_string(acc)) != string::npos)
+    {
+        transactionCount++;
+
+        file << transactionCount
+             << ". "
+             << line << endl;
+
+        cout << transactionCount
+             << ". "
+             << line << endl;
+    }
+}
+file << "\n---------------------------------------\n";
+file << "Total Transactions: "
+     << transactionCount
+     << "\n";
+
+cout << "\nTotal Transactions: "
+     << transactionCount
+     << endl;
+history.close();
+cout << "\n========== ACCOUNT STATEMENT ==========\n";
+
+cout << "Owner          : "
+     << a.owner << endl;
+
+cout << "Account Number : "
+     << a.accountNumber << endl;
+
+cout << "Currency       : "
+     << a.currency << endl;
+
+cout << "Current Balance: "
+     << a.balance << " "
+     << a.currency << endl;
+
+cout << "\nCollecting transactions...\n";
+            file.close();
+
+            writeLog("ACCOUNT STATEMENT | Account: " +
+                     to_string(acc));
+
+            cout << "\nStatement created successfully!\n";
+            cout << "File: " << fileName << endl;
+
+            return;
+        }
+    }
+
+    cout << "Account not found!" << endl;
+}
 int main () {
 cout << fixed << setprecision(2);
     if(!login()) {
@@ -1809,7 +1928,8 @@ cout << fixed << setprecision(2);
         cout << "20. Bank Interest calculator\n";
         cout << "21. Export to CSV\n";  
         cout << "22. Monthly Report \n";
-        cout << "23. Exit\n";
+        cout << "23. Account Statement\n";
+        cout << "24. Exit\n";
         cout << "Choice: ";
 
         cin >> choice;
@@ -1891,6 +2011,9 @@ cout << fixed << setprecision(2);
             monthlyReport(accounts);
             break;
         case 23:
+            accountStatement(accounts);
+            break;
+        case 24:
             cout << "Goodbye!" << endl;
             saveToFile(accounts);
             break; 
@@ -1898,7 +2021,7 @@ cout << fixed << setprecision(2);
             cout << "Invalid choice!" << endl;
         }
 
-    } while (choice != 23);
+    } while (choice != 24);
 
     return 0;
 }
