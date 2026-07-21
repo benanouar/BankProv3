@@ -21,6 +21,7 @@ const string FAVORITES_FILE = "/data/data/com.termux/files/home/.bankprov3/favor
 const string PASSWORD_FILE = "/data/data/com.termux/files/home/.bankprov3/passwords.txt";
 const string CSV_FILE = "/data/data/com.termux/files/home/.bankprov3/monthly_report.txt";
 const string REPORT_FILE = "/data/data/com.termux/files/home/.bankprov3/monthly_report.txt";
+const string RECEIPTS_DIR ="/data/data/com.termux/files/home/.bankprov3/receipts/";
 const string STATEMENT_DIR = "/data/data/com.termux/files/home/.bankprov3/";
 const double EUR_TO_DZD = 148.69;
 const double USD_TO_DZD = 133.94;
@@ -66,7 +67,10 @@ void initializeSystem()
     {
         fs::create_directory(DATA_DIR);
     }
-
+    if (!fs::exists(RECEIPTS_DIR))
+    {
+        fs::create_directory(RECEIPTS_DIR);
+    }
     if (!fs::exists(DATA_FILE))
     {
         ofstream file(DATA_FILE);
@@ -82,6 +86,12 @@ void deletePassword(int accountNumber);
 void bankInterestCalculator(vector<Account>& accounts);
 void exportToCSV(vector<Account>& accounts);
 void monthlyReport(vector<Account>& accounts);
+void createReceipt(
+    Account account,
+    string operation,
+    double amount,
+    double balanceBefore
+);
 void createBackup()
 
 {
@@ -317,7 +327,11 @@ void deposit(vector<Account>& accounts) {
             cout << "\nDeposit successful!\n";
             cout << "Amount: +" << amount << " " << a.currency << endl;
             cout << fixed << setprecision(2);
+            double oldBalance = a.balance;
+
+            a.balance += amount;
             saveToFile(accounts);
+            createReceipt(a, "DEPOSIT", amount, oldBalance);
             writeLog(
                 "DEPOSIT | Account: " +
                 to_string(a.accountNumber) +
@@ -354,7 +368,11 @@ void withdraw(vector<Account>& accounts) {
                 cout << "\nWithdrawal successful!\n";
                 cout << "Amount: -" << amount << " " << a.currency << endl;
                 cout << fixed << setprecision(2);
+                double oldBalance = a.balance;
+
+                a.balance -= amount;
                 saveToFile(accounts); 
+                createReceipt(a, "WITHDRAW", amount, oldBalance);
                 writeLog(
                     "WITHDRAW | Account: " +
                     to_string(a.accountNumber) +
@@ -437,8 +455,12 @@ void transferMoney(vector<Account>& accounts) {
     saveLastState();
     accounts[fromIndex].balance -= amount;
     accounts[toIndex].balance += amount;
-
+    double oldBalanceFrom = accounts[fromIndex].balance;
+    double oldBalanceTo   = accounts[toIndex].balance;
     saveToFile(accounts);
+    createReceipt(accounts[fromIndex], "TRANSFER", amount,oldBalanceFrom);   
+    createReceipt(accounts[toIndex], "TRANSFER RECEIVED", amount,oldBalanceTo);
+
 writeLog(
     "TRANSFER | From " +
     to_string(fromAcc) +
@@ -1249,7 +1271,7 @@ void changeCurrency(vector<Account>& accounts)
             );
 
             cout << "\nCurrency changed successfully!\n";
-
+            createReceipt(a, "CHANGE CURRENCY", 0,oldBalance);
             cout << "Old Balance : "
                  << oldBalance
                  << " "
@@ -1336,8 +1358,10 @@ if (toupper(apply) == 'Y')
     saveLastState();
 
     a.balance = finalBalance;
+    double oldBalance = a.balance;
 
     saveToFile(accounts);
+    createReceipt(a, "SIMPLE INTEREST", interest,oldBalance);
 
     writeLog(
         "SIMPLE INTEREST | Account: " +
@@ -1413,9 +1437,10 @@ else  if (choice == 2)
         saveLastState();
 
         a.balance = finalBalance;
+        double oldBalance = a.balance;
 
         saveToFile(accounts);
-
+        createReceipt(a, "COMPOUND INTEREST", interest,oldBalance);
         writeLog(
             "COMPOUND INTEREST | Account: " +
             to_string(a.accountNumber) +
@@ -1891,6 +1916,74 @@ cout << "\nCollecting transactions...\n";
     }
 
     cout << "Account not found!" << endl;
+}
+void createReceipt(Account account,
+                   string operation,
+                   double amount, double balanceBefore)
+{
+    time_t now = time(nullptr);
+
+    string receiptID =
+        to_string(now);
+
+    string fileName =
+        RECEIPTS_DIR +
+        "receipt_" +
+        receiptID +
+        ".txt";
+
+    ofstream file(fileName);
+
+    if (!file)
+    {
+        cout << "Cannot create receipt!" << endl;
+        return;
+    }
+
+    file << fixed << setprecision(2);
+    file << "==========================================\n";
+    file << "             BANK PRO v3\n";
+    file << "==========================================\n\n";
+
+    file << "Receipt ID      : "
+         << receiptID << "\n";
+
+    file << "Date            : "
+         << currentTime() << "\n\n";
+
+    file << "Operation       : "
+         << operation << "\n\n";
+
+    file << "Owner           : "
+         << account.owner << "\n";
+
+    file << "Account Number  : "
+         << account.accountNumber << "\n";
+
+    file << "Currency        : "
+         << account.currency << "\n\n";
+
+    file << "Amount          : "
+         << amount << " "
+         << account.currency << "\n";
+
+    file << "Balance Before  : "
+         << balanceBefore << " "
+         << account.currency << "\n";
+
+    file << "Balance After   : "
+         << account.balance << " "
+         << account.currency << "\n";
+
+    file << "Status          : SUCCESS\n\n";
+    file << "\n==========================================\n";
+    file << "       Thank you for using Bank Pro v3\n";
+    file << "==========================================\n";
+
+    file.close();
+
+    cout << "\nReceipt created successfully!\n";
+    cout << "File: " << fileName << endl;
 }
 int main () {
 cout << fixed << setprecision(2);
