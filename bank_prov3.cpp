@@ -86,12 +86,22 @@ void deletePassword(int accountNumber);
 void bankInterestCalculator(vector<Account>& accounts);
 void exportToCSV(vector<Account>& accounts);
 void monthlyReport(vector<Account>& accounts);
+void advancedSearch(vector<Account>& accounts);
 void createReceipt(
     Account account,
     string operation,
     double amount,
     double balanceBefore
 );
+string toLower(string text)
+{
+    for (char &c : text)
+    {
+        c = tolower(c);
+    }
+
+    return text;
+}
 void createBackup()
 
 {
@@ -1985,6 +1995,205 @@ void createReceipt(Account account,
     cout << "\nReceipt created successfully!\n";
     cout << "File: " << fileName << endl;
 }
+void advancedSearch(vector<Account>& accounts)
+{
+    int choice;
+
+    cout << "\n===== ADVANCED SEARCH =====\n";
+    cout << "1. Search by Owner\n";
+    cout << "2. Search by Currency\n";
+    cout << "3. Search by Balance\n";
+    cout << "4. Sort Accounts\n";
+    cout << "5. Back\n";
+    cout << "Choice: ";
+    cin >> choice;
+
+    switch(choice)
+    {
+        case 1:
+{
+    string name;
+    bool found = false;
+
+    cout << "\nOwner Name: ";
+    cin >> ws;
+    getline(cin, name);
+
+    cout << "\n========== SEARCH RESULTS ==========\n";
+
+    for (Account &a : accounts)
+    {
+        string owner = toLower(a.owner);
+        string search = toLower(name);
+        if (owner.find(search) != string::npos)
+        {
+            a.show();
+            cout << "-----------------------------\n";
+            found = true;
+        }
+    }
+
+    if (!found)
+    {
+        cout << "No accounts found!" << endl;
+    }
+
+    break;
+}
+
+        case 2:
+           
+{
+    string currency;
+    bool found = false;
+
+    cout << "\nCurrency (EUR/USD/DZD): ";
+    cin >> currency;
+
+    currency = toLower(currency);
+
+    cout << "\n========== SEARCH RESULTS ==========\n";
+
+    for (Account &a : accounts)
+    {
+        if (toLower(a.currency) == currency)
+        {
+            a.show();
+            cout << "-----------------------------\n";
+            found = true;
+        }
+    }
+
+    if (!found)
+    {
+        cout << "No accounts found!" << endl;
+    }
+
+    break;
+}
+
+        case 3:
+            
+{
+    int option;
+    double value;
+    bool found = false;
+
+    cout << "\n===== SEARCH BY BALANCE =====\n";
+    cout << "1. Greater Than\n";
+    cout << "2. Less Than\n";
+    cout << "3. Equal To\n";
+    cout << "Choice: ";
+    cin >> option;
+
+    cout << "Balance: ";
+    cin >> value;
+
+    cout << "\n========== SEARCH RESULTS ==========\n";
+
+    for (Account &a : accounts)
+    {
+        bool match = false;
+
+        if (option == 1 && a.balance > value)
+            match = true;
+
+        else if (option == 2 && a.balance < value)
+            match = true;
+
+        else if (option == 3 && a.balance == value)
+            match = true;
+
+        if (match)
+        {
+            a.show();
+            cout << "-----------------------------\n";
+            found = true;
+        }
+    }
+
+    if (!found)
+    {
+        cout << "No accounts found!" << endl;
+    }
+
+    break;
+}
+case 4:
+{
+    int sortChoice;
+    int order;
+
+    cout << "\n===== SORT ACCOUNTS =====\n";
+    cout << "1. By Owner\n";
+    cout << "2. By Balance\n";
+    cout << "3. By Account Number\n";
+    cout << "Choice: ";
+    cin >> sortChoice;
+    
+    cout << "\nOrder:\n";
+    cout << "1. Ascending\n";
+    cout << "2. Descending\n";
+    cout << "Choice: ";
+    cin >> order;
+
+if (sortChoice == 1)
+{
+    sort(accounts.begin(), accounts.end(),
+    [order](Account a, Account b)
+    {
+        if (order == 1)
+            return a.owner < b.owner;
+        else
+            return a.owner > b.owner;
+    });
+}
+else if (sortChoice == 2)
+{
+    sort(accounts.begin(), accounts.end(),
+    [order](Account a, Account b)
+    {
+        if (order == 1)
+            return a.balance < b.balance;
+        else
+            return a.balance > b.balance;
+    });
+}
+else if (sortChoice == 3)
+{
+    sort(accounts.begin(), accounts.end(),
+    [order](Account a, Account b)
+    {
+        if (order == 1)
+            return a.accountNumber < b.accountNumber;
+        else
+            return a.accountNumber > b.accountNumber;
+    });
+}
+    else
+    {
+        cout << "Invalid choice!" << endl;
+        break;
+    }
+
+    cout << "\nAccounts sorted successfully!\n\n";
+
+    for (Account &a : accounts)
+    {
+        a.show();
+        cout << "-----------------------------\n";
+    }
+
+    break;
+}
+        case 5:
+            return;
+
+        default:
+            cout << "Invalid choice!" << endl;
+    }
+}
+
 int main () {
 cout << fixed << setprecision(2);
     if(!login()) {
@@ -2022,7 +2231,8 @@ cout << fixed << setprecision(2);
         cout << "21. Export to CSV\n";  
         cout << "22. Monthly Report \n";
         cout << "23. Account Statement\n";
-        cout << "24. Exit\n";
+        cout << "24. Advanced Search\n";
+        cout << "25. Exit\n";
         cout << "Choice: ";
 
         cin >> choice;
@@ -2107,6 +2317,9 @@ cout << fixed << setprecision(2);
             accountStatement(accounts);
             break;
         case 24:
+            advancedSearch(accounts);
+            break;
+        case 25:
             cout << "Goodbye!" << endl;
             saveToFile(accounts);
             break; 
@@ -2114,7 +2327,7 @@ cout << fixed << setprecision(2);
             cout << "Invalid choice!" << endl;
         }
 
-    } while (choice != 24);
+    } while (choice != 25);
 
     return 0;
 }
